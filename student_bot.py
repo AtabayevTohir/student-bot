@@ -10,13 +10,13 @@
   5. Run:  python student_bot.py
 =======================================================
 """
-
+import os
 # ─── PASTE YOUR KEYS HERE ───────────────────────────
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY  = os.environ.get("GEMINI_API_KEY")
 # ────────────────────────────────────────────────────
-import os
+
 import sqlite3
 import json
 import threading

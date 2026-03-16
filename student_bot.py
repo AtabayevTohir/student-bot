@@ -12,10 +12,11 @@
 """
 
 # ─── PASTE YOUR KEYS HERE ───────────────────────────
-TELEGRAM_TOKEN = "8590082745:AAEQKG4DiuLEkBf7FYxqgikkui9ApEXaTaw"
-GEMINI_API_KEY = "AIzaSyD3v1jjv7UBdtAkBzHNAUqQ37nLSlBeIqE"
-# ────────────────────────────────────────────────────
 
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+GEMINI_API_KEY  = os.environ.get("GEMINI_API_KEY")
+# ────────────────────────────────────────────────────
+import os
 import sqlite3
 import json
 import threading

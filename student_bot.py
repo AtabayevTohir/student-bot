@@ -29,7 +29,7 @@ import google.generativeai as genai
 # ─── Setup Gemini AI ────────────────────────────────
 genai.configure(api_key=GEMINI_API_KEY)
 ai_model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",  # free model
+    model_name="gemini-2.0-flash",  # free model
     system_instruction=(
         "You are a helpful student assistant. "
         "Help students with their studies, explain concepts clearly, "

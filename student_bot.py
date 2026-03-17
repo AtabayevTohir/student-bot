@@ -76,17 +76,26 @@ waiting_for = {}  # { user_id: "addtask" }
 @bot.message_handler(commands=["start", "help"])
 def cmd_start(msg):
     name = msg.from_user.first_name
+    
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("📋 Add Task", callback_data="btn_addtask"),
+        InlineKeyboardButton("📄 My Tasks", callback_data="btn_tasks")
+    )
+    keyboard.row(
+        InlineKeyboardButton("✅ Mark Done", callback_data="btn_done"),
+        InlineKeyboardButton("📊 Report", callback_data="btn_report")
+    )
+    keyboard.row(
+        InlineKeyboardButton("🤖 AI Chat", callback_data="btn_chat"),
+        InlineKeyboardButton("🗑 Clear All", callback_data="btn_clear")
+    )
+
     bot.send_message(
         msg.chat.id,
         f"👋 *Hi {name}! I'm your Student Assistant Bot.*\n\n"
-        "Here's what I can do:\n\n"
-        "📋 /addtask — Add a new assignment\n"
-        "📄 /tasks — View all your pending tasks\n"
-        "✅ /done — Mark a task as completed\n"
-        "📊 /report — See your weekly progress\n"
-        "🤖 /chat — Ask AI anything\n"
-        "🗑 /clear — Delete all your tasks\n\n"
-        "_You'll also get automatic reminders for upcoming deadlines!_",
+        "Pick an option below or type a command directly:",
+        reply_markup=keyboard,
         parse_mode="Markdown"
     )
 
@@ -295,6 +304,38 @@ def handle_buttons(call):
     elif call.data == "cancel":
         bot.edit_message_text("Cancelled. ✋", chat_id=call.message.chat.id,
                               message_id=call.message.message_id)
+    
+    elif call.data == "btn_addtask":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cmd_addtask(call.message)   
+
+    elif call.data == "btn_tasks":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cmd_tasks(call.message)
+
+    elif call.data == "btn_done":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cmd_done(call.message)
+
+    elif call.data == "btn_report":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cmd_report(call.message)
+
+    elif call.data == "btn_chat":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        bot.send_message(
+            call.message.chat.id,
+            "🤖 *AI Chat*\n\nJust type any message and I'll answer!\n\n"
+            "📌 Examples:\n"
+            "• _explain Newton's second law_\n"
+            "• _give me 3 tips to study better_\n"
+            "• _what is the difference between mitosis and meiosis_",
+            parse_mode="Markdown"
+        )
+
+    elif call.data == "btn_clear":
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cmd_clear(call.message)
 
 
 # ════════════════════════════════════════════════════

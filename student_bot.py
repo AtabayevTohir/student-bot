@@ -74,28 +74,22 @@ waiting_for = {}  # { user_id: "addtask" }
 # ════════════════════════════════════════════════════
 
 @bot.message_handler(commands=["start", "help"])
+def main_keyboard():
+    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, persistent=True)
+    keyboard.row("📋 Add Task")
+    keyboard.row("📄 My Tasks", "📊 Report")
+    keyboard.row("✅ Mark Done", "🗑 Clear All")
+    keyboard.row("🤖 AI Chat")
+    return keyboard
+
+@bot.message_handler(commands=["start", "help"])
 def cmd_start(msg):
     name = msg.from_user.first_name
-    
-    keyboard = InlineKeyboardMarkup()
-    keyboard.row(
-        InlineKeyboardButton("📋 Add Task", callback_data="btn_addtask"),
-        InlineKeyboardButton("📄 My Tasks", callback_data="btn_tasks")
-    )
-    keyboard.row(
-        InlineKeyboardButton("✅ Mark Done", callback_data="btn_done"),
-        InlineKeyboardButton("📊 Report", callback_data="btn_report")
-    )
-    keyboard.row(
-        InlineKeyboardButton("🤖 AI Chat", callback_data="btn_chat"),
-        InlineKeyboardButton("🗑 Clear All", callback_data="btn_clear")
-    )
-
     bot.send_message(
         msg.chat.id,
         f"👋 *Hi {name}! I'm your Student Assistant Bot.*\n\n"
-        "Pick an option below or type a command directly:",
-        reply_markup=keyboard,
+        "Use the buttons below to get started!",
+        reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
 
@@ -345,26 +339,45 @@ def handle_buttons(call):
 @bot.message_handler(func=lambda msg: True)
 def handle_text(msg):
     uid = msg.chat.id
+    text = msg.text
 
-    # If user is expected to enter a task
+    # Button taps
+    if text == "📋 Add Task":
+        cmd_addtask(msg)
+        return
+    if text == "📄 My Tasks":
+        cmd_tasks(msg)
+        return
+    if text == "✅ Mark Done":
+        cmd_done(msg)
+        return
+    if text == "📊 Report":
+        cmd_report(msg)
+        return
+    if text == "🗑 Clear All":
+        cmd_clear(msg)
+        return
+    if text == "🤖 AI Chat":
+        bot.send_message(
+            uid,
+            "🤖 Just type your question and I'll answer!",
+            reply_markup=main_keyboard()
+        )
+        return
+
+    # If user is entering a task
     if waiting_for.get(uid) == "addtask":
         waiting_for.pop(uid)
         parts = [p.strip() for p in msg.text.split("|")]
         if len(parts) < 3:
-            bot.send_message(
-                uid,
-                "❌ Wrong format. Please use:\n`Title | Subject | YYYY-MM-DD`\n\nTry /addtask again.",
-                parse_mode="Markdown"
-            )
+            bot.send_message(uid, "❌ Wrong format. Please use:\n`Title | Subject | YYYY-MM-DD`\n\nTry again.", parse_mode="Markdown")
             return
         title, subject, deadline = parts[0], parts[1], parts[2]
-        # Validate date
         try:
             datetime.strptime(deadline, "%Y-%m-%d")
         except ValueError:
-            bot.send_message(uid, "❌ Invalid date format. Use `YYYY-MM-DD` (e.g. 2024-12-25).\n\nTry /addtask again.", parse_mode="Markdown")
+            bot.send_message(uid, "❌ Invalid date. Use `YYYY-MM-DD`.\n\nTry again.", parse_mode="Markdown")
             return
-
         conn = db()
         conn.execute(
             "INSERT INTO tasks (user_id, title, subject, deadline) VALUES (?, ?, ?, ?)",
@@ -377,11 +390,14 @@ def handle_text(msg):
             f"✅ *Task added!*\n\n"
             f"📌 {title}\n"
             f"📚 Subject: {subject}\n"
-            f"⏰ Deadline: {deadline}\n\n"
-            f"Use /tasks to see all your tasks.",
+            f"⏰ Deadline: {deadline}",
+            reply_markup=main_keyboard(),
             parse_mode="Markdown"
         )
         return
+
+    # Otherwise AI chat
+    ask_ai(uid, msg.text)
 
     # Otherwise, treat as AI chat
     ask_ai(uid, msg.text)

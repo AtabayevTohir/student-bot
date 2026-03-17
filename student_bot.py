@@ -51,7 +51,7 @@ waiting_for    = {}
 
 # ─── Persistent keyboard ────────────────────────────
 def main_keyboard():
-    kb = ReplyKeyboardMarkup(resize_keyboard=True, persistent=True)
+    kb = ReplyKeyboardMarkup(resize_keyboard=True, is_persistent=True)
     kb.row("📋 Add Task")
     kb.row("📄 My Tasks", "📊 Report")
     kb.row("✅ Mark Done", "🗑 Clear All")

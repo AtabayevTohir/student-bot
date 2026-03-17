@@ -1,21 +1,15 @@
-"""
-=======================================================
-  STUDENT ASSISTANT TELEGRAM BOT  🤖
-=======================================================
-  SETUP INSTRUCTIONS:
-  1. Install Python 3.9+ from https://python.org
-  2. Open terminal / command prompt in this folder
-  3. Run:  pip install pyTelegramBotAPI google-generativeai schedule
-  4. PASTE YOUR KEYS in the two lines below (lines 18-19)
-  5. Run:  python student_bot.py
-=======================================================
-"""
 import os
-# ─── PASTE YOUR KEYS HERE ───────────────────────────
+import sqlite3
+import threading
+import time
+from datetime import datetime
+import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
+import google.generativeai as genai
 
+# ─── KEYS ───────────────────────────────────────────
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY  = os.environ.get("GEMINI_API_KEY")
-# ────────────────────────────────────────────────────
 
 # ─── Gemini AI ──────────────────────────────────────
 genai.configure(api_key=GEMINI_API_KEY)
@@ -27,10 +21,10 @@ ai_model = genai.GenerativeModel(
         "give study tips, and be encouraging. Keep replies concise."
     )
 )
- 
+
 # ─── Telegram Bot ───────────────────────────────────
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
- 
+
 # ─── Database ───────────────────────────────────────
 def init_db():
     conn = sqlite3.connect("tasks.db")
@@ -47,14 +41,14 @@ def init_db():
     """)
     conn.commit()
     conn.close()
- 
+
 def db():
     return sqlite3.connect("tasks.db")
- 
+
 # ─── Memory ─────────────────────────────────────────
 chat_histories = {}
 waiting_for    = {}
- 
+
 # ─── Persistent keyboard ────────────────────────────
 def main_keyboard():
     kb = ReplyKeyboardMarkup(resize_keyboard=True, persistent=True)
@@ -63,8 +57,8 @@ def main_keyboard():
     kb.row("✅ Mark Done", "🗑 Clear All")
     kb.row("🤖 AI Chat")
     return kb
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /start
 # ════════════════════════════════════════════════════
@@ -78,8 +72,8 @@ def cmd_start(msg):
         reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /addtask
 # ════════════════════════════════════════════════════
@@ -96,8 +90,8 @@ def cmd_addtask(msg):
         "_Type /cancel to go back._",
         parse_mode="Markdown"
     )
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /tasks
 # ════════════════════════════════════════════════════
@@ -110,11 +104,11 @@ def cmd_tasks(msg):
         (str(msg.chat.id),)
     ).fetchall()
     conn.close()
- 
+
     if not tasks:
         bot.send_message(msg.chat.id, "🎉 *No pending tasks!* You're all caught up.", parse_mode="Markdown")
         return
- 
+
     text  = "📋 *Your Pending Tasks:*\n\n"
     today = datetime.now().date()
     for i, (tid, title, subject, deadline) in enumerate(tasks, 1):
@@ -131,12 +125,12 @@ def cmd_tasks(msg):
                 icon = "🟢"; note = f"  _({days_left} days left)_"
         except:
             icon = "🟡"; note = ""
- 
+
         text += f"{i}. {icon} *{title}*\n   📚 {subject} | ⏰ {deadline}{note}\n\n"
- 
+
     bot.send_message(msg.chat.id, text, parse_mode="Markdown")
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /done
 # ════════════════════════════════════════════════════
@@ -148,11 +142,11 @@ def cmd_done(msg):
         (str(msg.chat.id),)
     ).fetchall()
     conn.close()
- 
+
     if not tasks:
         bot.send_message(msg.chat.id, "No pending tasks to mark as done! 🎉")
         return
- 
+
     keyboard = InlineKeyboardMarkup()
     for tid, title, subject in tasks:
         keyboard.add(InlineKeyboardButton(
@@ -162,8 +156,8 @@ def cmd_done(msg):
     keyboard.add(InlineKeyboardButton("❌ Cancel", callback_data="cancel"))
     bot.send_message(msg.chat.id, "✅ *Which task did you complete?*",
                      reply_markup=keyboard, parse_mode="Markdown")
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /report
 # ════════════════════════════════════════════════════
@@ -171,7 +165,7 @@ def cmd_done(msg):
 def cmd_report(msg):
     uid  = str(msg.chat.id)
     conn = db()
- 
+
     done_week  = conn.execute(
         "SELECT COUNT(*) FROM tasks WHERE user_id=? AND done=1 "
         "AND created_at >= datetime('now', '-7 days')", (uid,)
@@ -189,7 +183,7 @@ def cmd_report(msg):
         "SELECT COUNT(*) FROM tasks WHERE user_id=? AND done=1", (uid,)
     ).fetchone()[0]
     conn.close()
- 
+
     total  = done_week + pending
     pct    = round((done_week / total) * 100) if total > 0 else 0
     filled = round(pct / 10)
@@ -197,7 +191,7 @@ def cmd_report(msg):
     mood   = ("🌟 Amazing work! Keep it up!"      if pct >= 80
          else "💪 Good progress! Stay focused!"   if pct >= 50
          else "📚 Time to catch up — you've got this!")
- 
+
     bot.send_message(
         msg.chat.id,
         f"📊 *Your Weekly Report*\n{'─'*28}\n\n"
@@ -208,8 +202,8 @@ def cmd_report(msg):
         f"📈 All time: *{total_done}/{total_ever}* tasks done\n\n{mood}",
         parse_mode="Markdown"
     )
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /clear
 # ════════════════════════════════════════════════════
@@ -222,8 +216,8 @@ def cmd_clear(msg):
     )
     bot.send_message(msg.chat.id, "⚠️ Are you sure you want to delete *all* your tasks?",
                      reply_markup=keyboard, parse_mode="Markdown")
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   /cancel
 # ════════════════════════════════════════════════════
@@ -231,15 +225,15 @@ def cmd_clear(msg):
 def cmd_cancel(msg):
     waiting_for.pop(msg.chat.id, None)
     bot.send_message(msg.chat.id, "Cancelled. ✋", reply_markup=main_keyboard())
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   INLINE BUTTON CALLBACKS
 # ════════════════════════════════════════════════════
 @bot.callback_query_handler(func=lambda call: True)
 def handle_buttons(call):
     bot.answer_callback_query(call.id)
- 
+
     if call.data.startswith("done_"):
         task_id = call.data.replace("done_", "")
         conn    = db()
@@ -254,7 +248,7 @@ def handle_buttons(call):
             message_id=call.message.message_id,
             parse_mode="Markdown"
         )
- 
+
     elif call.data == "confirm_clear":
         conn = db()
         conn.execute("DELETE FROM tasks WHERE user_id=?", (str(call.message.chat.id),))
@@ -263,13 +257,13 @@ def handle_buttons(call):
         bot.edit_message_text("🗑 All tasks deleted.",
                               chat_id=call.message.chat.id,
                               message_id=call.message.message_id)
- 
+
     elif call.data == "cancel":
         bot.edit_message_text("Cancelled. ✋",
                               chat_id=call.message.chat.id,
                               message_id=call.message.message_id)
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   ALL TEXT MESSAGES (buttons + task input + AI)
 # ════════════════════════════════════════════════════
@@ -277,7 +271,7 @@ def handle_buttons(call):
 def handle_text(msg):
     uid  = msg.chat.id
     text = msg.text
- 
+
     # ── Keyboard button taps ──
     if text == "📋 Add Task":
         cmd_addtask(msg)
@@ -303,7 +297,7 @@ def handle_text(msg):
             "• _what is mitosis_",
             reply_markup=main_keyboard(), parse_mode="Markdown")
         return
- 
+
     # ── Task input after Add Task button ──
     if waiting_for.get(uid) == "addtask":
         waiting_for.pop(uid)
@@ -331,11 +325,11 @@ def handle_text(msg):
             f"✅ *Task added!*\n\n📌 {title}\n📚 {subject}\n⏰ {deadline}",
             reply_markup=main_keyboard(), parse_mode="Markdown")
         return
- 
+
     # ── Everything else → AI ──
     ask_ai(uid, text)
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   AI
 # ════════════════════════════════════════════════════
@@ -348,21 +342,21 @@ def ask_ai(chat_id, user_message):
         chat     = ai_model.start_chat(history=chat_histories[uid])
         response = chat.send_message(user_message)
         reply    = response.text
- 
+
         chat_histories[uid].append({"role": "user",  "parts": [user_message]})
         chat_histories[uid].append({"role": "model", "parts": [reply]})
         if len(chat_histories[uid]) > 20:
             chat_histories[uid] = chat_histories[uid][-20:]
- 
+
         if len(reply) > 4000:
             reply = reply[:4000] + "\n\n_[Reply trimmed]_"
- 
+
         bot.send_message(chat_id, f"🤖 {reply}",
                          reply_markup=main_keyboard(), parse_mode="Markdown")
     except Exception as e:
         bot.send_message(chat_id, f"❌ AI error: {str(e)[:200]}\n\nPlease try again.")
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   DAILY REMINDER at 8 AM Uzbekistan (3 AM UTC)
 # ════════════════════════════════════════════════════
@@ -378,7 +372,7 @@ def send_daily_reminders():
             "SELECT title, deadline FROM tasks WHERE user_id=? AND done=0 "
             "AND deadline BETWEEN date('now') AND date('now', '+2 days')", (uid,)
         ).fetchall()
- 
+
         parts = ["📢 *Good morning! Daily task reminder:*\n"]
         if overdue:
             parts.append(f"🔴 *Overdue ({len(overdue)}):*")
@@ -395,7 +389,7 @@ def send_daily_reminders():
             except:
                 pass
     conn.close()
- 
+
 def reminder_loop():
     sent_today = None
     while True:
@@ -405,8 +399,8 @@ def reminder_loop():
             send_daily_reminders()
             sent_today = today
         time.sleep(60)
- 
- 
+
+
 # ════════════════════════════════════════════════════
 #   START
 # ════════════════════════════════════════════════════
